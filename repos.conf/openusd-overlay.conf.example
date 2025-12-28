@@ -1,0 +1,4 @@
+[openusd-overlay]
+location = /path/to/openusd-overlay
+masters = gentoo
+auto-sync = no

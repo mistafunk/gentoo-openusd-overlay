@@ -1,0 +1,17 @@
+diff --git a/pxr/external/boost/python/CMakeLists.txt b/pxr/external/boost/python/CMakeLists.txt
+index d8e91ec..02d11bf 100644
+--- a/pxr/external/boost/python/CMakeLists.txt
++++ b/pxr/external/boost/python/CMakeLists.txt
+@@ -15,10 +15,8 @@ else()
+ endif()
+ 
+ foreach(config RELEASE RELWITHDEBINFO MINSIZEREL)
+-    string(REPLACE
+-        ${ndebug_flag} ""
+-        CMAKE_CXX_FLAGS_${config} ${CMAKE_CXX_FLAGS_${config}}
+-    )
++    string(REPLACE "${ndebug_flag}" "" _pxr_cxx_flags "${CMAKE_CXX_FLAGS_${config}}")
++    set(CMAKE_CXX_FLAGS_${config} "${_pxr_cxx_flags}")
+ endforeach()
+ 
+ pxr_library(python

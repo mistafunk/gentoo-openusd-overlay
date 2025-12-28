@@ -1,0 +1,152 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index f99f9ed..5fcdcd6 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.26)
+ 
+ project(usd)
+ 
++include(GNUInstallDirs)
++
+ if (NOT CMAKE_SIZEOF_VOID_P EQUAL 8 AND NOT EMSCRIPTEN)
+     if (WIN32)
+         message(FATAL_ERROR "Compiler does not support 64-bit builds. "
+diff --git a/cmake/macros/Private.cmake b/cmake/macros/Private.cmake
+index b90b743..2d20ab3 100644
+--- a/cmake/macros/Private.cmake
++++ b/cmake/macros/Private.cmake
+@@ -431,10 +431,22 @@ function(_get_library_prefix output)
+ endfunction() # _get_library_prefix
+ 
+ function(_get_install_dir path out)
++    set(_path "${path}")
++
++    if(_path STREQUAL "lib")
++        set(_path "${CMAKE_INSTALL_LIBDIR}")
++    elseif(_path MATCHES "^lib/(.+)$")
++        set(_path "${CMAKE_INSTALL_LIBDIR}/${CMAKE_MATCH_1}")
++    elseif(_path STREQUAL "plugin")
++        set(_path "${CMAKE_INSTALL_LIBDIR}/usd/plugin")
++    elseif(_path MATCHES "^plugin/(.+)$")
++        set(_path "${CMAKE_INSTALL_LIBDIR}/usd/plugin/${CMAKE_MATCH_1}")
++    endif()
++
+     if (PXR_INSTALL_SUBDIR)
+-        set(${out} ${PXR_INSTALL_SUBDIR}/${path} PARENT_SCOPE)
++        set(${out} ${PXR_INSTALL_SUBDIR}/${_path} PARENT_SCOPE)
+     else()
+-        set(${out} ${path} PARENT_SCOPE)
++        set(${out} ${_path} PARENT_SCOPE)
+     endif()
+ endfunction() # get_install_dir
+ 
+@@ -1316,7 +1328,7 @@ function(_pxr_library NAME)
+             MFB_ALT_PACKAGE_NAME=${PXR_PACKAGE}
+             MFB_PACKAGE_MODULE=${pythonModuleName}
+             PXR_BUILD_LOCATION=usd
+-            PXR_PLUGIN_BUILD_LOCATION=../plugin/usd
++            PXR_PLUGIN_BUILD_LOCATION=usd/plugin/usd
+             ${pxrInstallLocation}
+             ${apiPrivate}
+     )
+diff --git a/cmake/macros/Public.cmake b/cmake/macros/Public.cmake
+index b8e588b..ab9b1b3 100644
+--- a/cmake/macros/Public.cmake
++++ b/cmake/macros/Public.cmake
+@@ -1025,7 +1025,7 @@ function(pxr_setup_plugins)
+     foreach(dirName ${PXR_EXTRA_PLUGINS})
+         file(RELATIVE_PATH
+             relDirName
+-            "${CMAKE_INSTALL_PREFIX}/lib/usd"
++            "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/usd"
+             "${CMAKE_INSTALL_PREFIX}/${dirName}"
+         )
+         set(extraIncludes "${extraIncludes},\n        \"${relDirName}/\"")
+@@ -1036,7 +1036,7 @@ function(pxr_setup_plugins)
+          "${plugInfoContents}")
+     install(
+         FILES "${CMAKE_CURRENT_BINARY_DIR}/plugins_plugInfo.json"
+-        DESTINATION lib/usd
++        DESTINATION "${CMAKE_INSTALL_LIBDIR}/usd"
+         RENAME "plugInfo.json"
+     )
+ 
+@@ -1045,7 +1045,7 @@ function(pxr_setup_plugins)
+          "${plugInfoContents}")
+     install(
+         FILES "${CMAKE_CURRENT_BINARY_DIR}/usd_plugInfo.json"
+-        DESTINATION plugin/usd
++        DESTINATION "${CMAKE_INSTALL_LIBDIR}/usd/plugin/usd"
+         RENAME "plugInfo.json"
+     )
+ endfunction() # pxr_setup_plugins
+@@ -1058,14 +1058,16 @@ function(pxr_add_extra_plugins PLUGIN_AREAS)
+     get_property(help CACHE PXR_EXTRA_PLUGINS PROPERTY HELPSTRING)
+ 
+     foreach(area ${PLUGIN_AREAS})
++        _get_install_dir("${area}" _areaDest)
++
+         file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/${area}_plugInfo.json"
+             "${plugInfoContents}")
+         install(
+             FILES "${CMAKE_CURRENT_BINARY_DIR}/${area}_plugInfo.json"
+-            DESTINATION "${PXR_INSTALL_SUBDIR}/${area}"
++            DESTINATION "${_areaDest}"
+             RENAME "plugInfo.json"
+         )
+-        list(APPEND PXR_EXTRA_PLUGINS "${PXR_INSTALL_SUBDIR}/${area}")
++        list(APPEND PXR_EXTRA_PLUGINS "${_areaDest}")
+     endforeach()
+ 
+     set(PXR_EXTRA_PLUGINS "${PXR_EXTRA_PLUGINS}" CACHE INTERNAL "${help}")
+diff --git a/pxr/CMakeLists.txt b/pxr/CMakeLists.txt
+index b735c86..1a5aab9 100644
+--- a/pxr/CMakeLists.txt
++++ b/pxr/CMakeLists.txt
+@@ -61,9 +61,10 @@ endforeach()
+ 
+ configure_file(pxrConfig.cmake.in
+   "${PROJECT_BINARY_DIR}/pxrConfig.cmake" @ONLY)
++set(_pxr_cmake_install_dir "${CMAKE_INSTALL_LIBDIR}/cmake/pxr")
+ install(FILES
+   "${PROJECT_BINARY_DIR}/pxrConfig.cmake"
+-  DESTINATION "${CMAKE_INSTALL_PREFIX}"
++  DESTINATION "${_pxr_cmake_install_dir}"
+ )
+ 
+-install(EXPORT pxrTargets DESTINATION "cmake")
++install(EXPORT pxrTargets DESTINATION "${_pxr_cmake_install_dir}")
+diff --git a/pxr/pxrConfig.cmake.in b/pxr/pxrConfig.cmake.in
+index b83cf3d..f68afa0 100644
+--- a/pxr/pxrConfig.cmake.in
++++ b/pxr/pxrConfig.cmake.in
+@@ -11,6 +11,12 @@
+ 
+ get_filename_component(PXR_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+ 
++# Installed layout expects this file at:
++#   <prefix>/${CMAKE_INSTALL_LIBDIR}/cmake/pxr/pxrConfig.cmake
++get_filename_component(_PXR_PREFIX "${PXR_CMAKE_DIR}" DIRECTORY)
++get_filename_component(_PXR_PREFIX "${_PXR_PREFIX}" DIRECTORY)
++get_filename_component(_PXR_PREFIX "${_PXR_PREFIX}" DIRECTORY)
++
+ set(PXR_MAJOR_VERSION "@PXR_MAJOR_VERSION@")
+ set(PXR_MINOR_VERSION "@PXR_MINOR_VERSION@")
+ set(PXR_PATCH_VERSION "@PXR_PATCH_VERSION@")
+@@ -115,14 +121,14 @@ if(NOT "@PXR_WORK_IMPL_PACKAGE@" STREQUAL "")
+     find_dependency(@PXR_WORK_IMPL_PACKAGE@)
+ endif()
+ 
+-include("${PXR_CMAKE_DIR}/cmake/pxrTargets.cmake")
++include("${PXR_CMAKE_DIR}/pxrTargets.cmake")
+ if (TARGET usd_m)
+     set(libs "usd_m")
+ else()
+     set(libs "@PXR_ALL_LIBS@")
+ endif()
+ set(PXR_LIBRARIES "")
+-set(PXR_INCLUDE_DIRS "${PXR_CMAKE_DIR}/include")
++set(PXR_INCLUDE_DIRS "${_PXR_PREFIX}/include")
+ string(REPLACE " " ";" libs "${libs}")
+ foreach(lib ${libs})
+     get_target_property(location ${lib} LOCATION)

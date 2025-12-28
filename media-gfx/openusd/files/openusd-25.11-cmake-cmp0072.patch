@@ -1,0 +1,13 @@
+diff --git a/cmake/defaults/Packages.cmake b/cmake/defaults/Packages.cmake
+index 8742546..3e921cd 100644
+--- a/cmake/defaults/Packages.cmake
++++ b/cmake/defaults/Packages.cmake
+@@ -188,7 +188,7 @@ if (PXR_BUILD_IMAGING)
+         # Prefer legacy GL library over GLVND libraries if both
+         # are installed.
+         if (POLICY CMP0072)
+-            cmake_policy(SET CMP0072 OLD)
++            cmake_policy(SET CMP0072 NEW)
+         endif()
+         find_package(OpenGL REQUIRED)
+         add_definitions(-DPXR_GL_SUPPORT_ENABLED)
