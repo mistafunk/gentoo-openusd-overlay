@@ -1,0 +1,3 @@
+# Keep keywording scoped. Expand only as Portage requires.
+media-gfx/openusd ~amd64
+media-libs/materialx ~amd64

@@ -1,0 +1,7 @@
+# CI runner artifacts (optional)
+*.log
+
+# Local caches (bind-mounted into the container)
+cache/
+
+__pycache__/
